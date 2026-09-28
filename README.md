@@ -1,2 +1,3 @@
-# flutter-nostr-chat
-Flutter nostr chat.
+# nostr_relay_chat_application
+
+A new Flutter project.
