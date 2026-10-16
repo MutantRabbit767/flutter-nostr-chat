@@ -15,6 +15,7 @@ class MaintainedWebSocket {
   static const Map<String, List<String>> tagFilter = {"t": [ "zolo-chat" ]};
 
   MaintainedWebSocket (String url) {
+    print("CONNECTING TO: $url");
     this.url = url;
 
     final wsUrl = Uri.parse(url);
@@ -35,6 +36,7 @@ class MaintainedWebSocket {
       channel.sink.add(request.serialize());
 
       channel.stream.listen((message) {
+        print(message);
         final dataJson = jsonDecode(message.toString());
         if (dataJson[0] == "EVENT") {
           print("KIND: ${dataJson[2]["kind"]}");

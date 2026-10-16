@@ -41,8 +41,12 @@ class MessagesNotifier extends ChangeNotifier {
     }
   }
 
-  void send (Event event, Keys keys, bool isImage) {
-    if (!isImage) push(event.id, MessageWidget(authorName: keys.public.substring(0, 5), messageContent: event.content, colour: Colors.green), false);
+  void send (Event event, Keys keys, bool isImage, String? url) {
+    if (!isImage) {
+      push(event.id, MessageWidget(authorName: keys.public.substring(0, 5), messageContent: event.content, colour: Colors.green), false);
+    } else {
+      push(event.id, MessageWidget(authorName: keys.public.substring(0, 5), messageContent: event.content, colour: Colors.green, isImage: true, url: url), true);
+    }
     String eventSerialized = event.serialize();
     _unsentMessages.addEntries([MapEntry(event.id, eventSerialized)]);
     for (var websocket in webSocketNotifier.websockets.values) {
@@ -52,7 +56,11 @@ class MessagesNotifier extends ChangeNotifier {
 
   void sent (String eventID) {
     _messages.update(eventID, (previous) {
-      return MessageWidget(authorName: previous.authorName, messageContent: previous.messageContent, colour: previous.colour, sent: true);
+      if(messagesNotifier.messages[eventID]!.isImage) {
+        return MessageWidget(authorName: previous.authorName, messageContent: previous.messageContent, colour: previous.colour, sent: true, isImage: true, url: messagesNotifier.messages[eventID]?.url);
+      } else {
+        return MessageWidget(authorName: previous.authorName, messageContent: previous.messageContent, colour: previous.colour, sent: true);
+      }
     });
     _unsentMessages.remove(eventID);
     notifyListeners();

@@ -11,6 +11,7 @@ import 'package:nostr_relay_chat_application/widgets/messages.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 
+final keys = Keys.generate();
 
 class MainCommunications extends StatefulWidget {
   const new({super.key});
@@ -20,9 +21,8 @@ class MainCommunications extends StatefulWidget {
 }
 
 class _MainCommunicationsState extends State<MainCommunications> {
-  TextEditingController messageController = TextEditingController();
-  final keys = Keys.generate();
   bool isTyping = false;
+  TextEditingController messageController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -112,7 +112,6 @@ void _sendImage (XFile image) async {
   var url = Uri.https("blossom.moviethingy.xyz", "/upload");
   Uint8List byteImage = await image.readAsBytes();
   String imageHash = hex.encode(sha256(byteImage));
-  final keys = Keys.generate();
   final event = Event.from(
     kind: 24242,
     tags: [["t", "upload"], ["x", imageHash], ["expiration", (DateTime.now().millisecondsSinceEpoch ~/ 1000 + 600).toString()]], // this tilda rounds, crazy work..
@@ -133,7 +132,7 @@ void _sendImage (XFile image) async {
     content: "An image sent by a Zolo user.",
     secretKey: keys.secret,
   );
-  messagesNotifier.send(imageEvent, keys, true);
+  messagesNotifier.send(imageEvent, keys, true, dataJson["url"]);
 }
 
 void _sendMessage (Keys keys, TextEditingController messageController) {
@@ -144,6 +143,6 @@ void _sendMessage (Keys keys, TextEditingController messageController) {
     secretKey: keys.secret,
   );
   
-  messagesNotifier.send(event, keys, false);
+  messagesNotifier.send(event, keys, false, null);
   messageController.clear();
 }
