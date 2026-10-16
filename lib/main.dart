@@ -1,15 +1,61 @@
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
+import 'package:convert/convert.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:nostr/nostr.dart';
+import 'package:nostr_relay_chat_application/logic/notifier.dart';
 import 'package:nostr_relay_chat_application/logic/websocket_manager.dart';
 import 'package:nostr_relay_chat_application/views/pages/main_communications.dart';
 import 'package:nostr_relay_chat_application/views/pages/private_communications.dart';
+import 'package:nostr_relay_chat_application/views/pages/servers.dart';
+import 'package:flutter_background/flutter_background.dart';
 
 int page = 0;
 String appBarTitle = "Main Communications.";
+bool? notificationsReady = false;
+bool isInBackground = false;
 
-void main() {
+FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+  
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  ByteData data = await PlatformAssetBundle().load('assets/ca/int-ye1.pem');
+  SecurityContext.defaultContext.setTrustedCertificatesBytes(data.buffer.asUint8List());
+
   runApp(const MainApp());
+  List<String> websocketURLs = ["wss://relay.primal.net", "wss://nos.lol", "wss://relay.moviethingy.xyz"];
+
+  for (var url in websocketURLs) {
+    webSocketNotifier.push(MaintainedWebSocket(url));
+  }
+
+  final androidConfig = FlutterBackgroundAndroidConfig(
+    notificationTitle: "Network Manager.",
+    notificationText: "Keeping you connected for notifications.",
+    notificationImportance: AndroidNotificationImportance.high,
+    enableWifiLock: true,
+  );
+
+  FlutterBackground.initialize(androidConfig: androidConfig);
+
+  flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
+      AndroidFlutterLocalNotificationsPlugin>()?.requestNotificationsPermission();
+      
+  // initialise the plugin. app_icon needs to be a added as a drawable resource to the Android head project
+  const AndroidInitializationSettings initializationSettingsAndroid =
+      AndroidInitializationSettings('@mipmap/ic_launcher');
+  final InitializationSettings initializationSettings = InitializationSettings(
+      android: initializationSettingsAndroid);
+
+  notificationsReady = await flutterLocalNotificationsPlugin.initialize(settings: initializationSettings);
 }
 
 class MainApp extends StatefulWidget {
@@ -18,7 +64,25 @@ class MainApp extends StatefulWidget {
   State<MainApp> createState() => _MainAppState();
 }
 
-class _MainAppState extends State<MainApp> {
+class _MainAppState extends State<MainApp> with WidgetsBindingObserver{
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    isInBackground = state == AppLifecycleState.paused;
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -39,7 +103,7 @@ class _MainAppState extends State<MainApp> {
                 child: Column(
                   children: [
                     ListTile(
-                      title: Text("Main Communications."),
+                      title: Text("Main Communications"),
                       leading: Icon(Icons.message),
                       onTap: () {
                         setState(() {
@@ -50,12 +114,23 @@ class _MainAppState extends State<MainApp> {
                       },
                     ),
                     ListTile(
-                      title: Text("Private Communications."),
+                      title: Text("Private Communications"),
                       leading: Icon(Icons.privacy_tip),
                       onTap: () {
                         setState(() {
                           page = 1;
                           appBarTitle = "Private Communications.";
+                        });
+                        Navigator.pop(context);
+                      },
+                    ),
+                    ListTile(
+                      title: Text("Servers"),
+                      leading: Icon(Icons.storage),
+                      onTap: () {
+                        setState(() {
+                          page = 2;
+                          appBarTitle = "Servers.";
                         });
                         Navigator.pop(context);
                       },
@@ -74,7 +149,8 @@ class _MainAppState extends State<MainApp> {
 
 List<Widget> pages = [
   MainCommunications(),
-  PrivateCommunications()
+  PrivateCommunications(),
+  Servers()
 ];
 
 class PageManager extends StatefulWidget {
