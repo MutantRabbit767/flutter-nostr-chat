@@ -22,7 +22,6 @@ bool? notificationsReady = false;
 bool isInBackground = false;
 
 FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
-  
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,27 +32,37 @@ void main() async {
   runApp(const MainApp());
   List<String> websocketURLs = ["wss://relay.primal.net", "wss://nos.lol", "wss://relay.moviethingy.xyz"];
 
+
   for (var url in websocketURLs) {
     webSocketNotifier.push(MaintainedWebSocket(url));
   }
+  
+  if(Platform.isAndroid) {
+    final androidConfig = FlutterBackgroundAndroidConfig(
+      notificationTitle: "Network Manager.",
+      notificationText: "Keeping you connected for notifications.",
+      notificationImportance: AndroidNotificationImportance.high,
+      enableWifiLock: true,
+    );
 
-  final androidConfig = FlutterBackgroundAndroidConfig(
-    notificationTitle: "Network Manager.",
-    notificationText: "Keeping you connected for notifications.",
-    notificationImportance: AndroidNotificationImportance.high,
-    enableWifiLock: true,
-  );
-
-  FlutterBackground.initialize(androidConfig: androidConfig);
+    FlutterBackground.initialize(androidConfig: androidConfig);
+  } else if (Platform.isLinux) {
+    isInBackground = true; // hacky fix to make notifications always happen on Linux until I can implement a way to track whether or not the window is active on Linux.
+  }
 
   flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
       AndroidFlutterLocalNotificationsPlugin>()?.requestNotificationsPermission();
       
   // initialise the plugin. app_icon needs to be a added as a drawable resource to the Android head project
   const AndroidInitializationSettings initializationSettingsAndroid =
-      AndroidInitializationSettings('@mipmap/ic_launcher');
+    AndroidInitializationSettings('@mipmap/ic_launcher');
+  final LinuxInitializationSettings initializationSettingsLinux = LinuxInitializationSettings(
+    defaultActionName: 'Open notification');
+
   final InitializationSettings initializationSettings = InitializationSettings(
-      android: initializationSettingsAndroid);
+    android: initializationSettingsAndroid,
+    linux: initializationSettingsLinux
+  );
 
   notificationsReady = await flutterLocalNotificationsPlugin.initialize(settings: initializationSettings);
 }
